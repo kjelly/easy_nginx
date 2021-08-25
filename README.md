@@ -1,1 +1,1 @@
-# easy_nginx
+A simple command-line application.
