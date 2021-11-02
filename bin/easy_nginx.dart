@@ -21,7 +21,14 @@ void main(List<String> args) async {
       abbr: 'p', help: '', valueHelp: '', defaultsTo: '8888');
   parser.addMultiOption('reverse', abbr: 'r', help: '', valueHelp: '');
   parser.addMultiOption('static', abbr: 's', help: '', valueHelp: '');
+  parser.addMultiOption('host', abbr: 'h', help: '', valueHelp: '');
+  parser.addFlag('hosts', help: 'mount /etc/hosts');
+  parser.addFlag('help');
   var argResults = parser.parse(args);
+  if (argResults['help']) {
+    print(parser.usage);
+    return;
+  }
   var dir = Directory.systemTemp.createTempSync();
   var nginxConfPath = '${dir.path}/nginx.conf';
   nginxConfPath = '/tmp/nginx.conf';
@@ -35,6 +42,15 @@ void main(List<String> args) async {
     '-v',
     '$nginxConfPath:/etc/nginx/nginx.conf',
   ];
+  if (argResults['hosts']) {
+    dockerArgs.addAll(['-v', '/etc/hosts:/etc/hosts']);
+  }
+  for (var i in argResults['host']) {
+    final t = split(i);
+    final hostname = t.item1;
+    final address = t.item2;
+    dockerArgs.addAll(['--add-host', '$hostname:$address']);
+  }
   var locations = '';
   for (var i in argResults['reverse']) {
     final t = split(i);
@@ -43,6 +59,10 @@ void main(List<String> args) async {
     locations += '''
     location $path {
       proxy_pass '$host$path';
+      proxy_ssl_verify              off;
+      proxy_http_version 1.1;
+      proxy_set_header Upgrade \$http_upgrade;
+      proxy_set_header Connection "upgrade";
     }
     ''';
   }
